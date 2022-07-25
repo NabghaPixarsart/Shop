@@ -4,7 +4,6 @@ from .models import CoreUser, Shop
 from django.contrib.auth import authenticate
 
 
-# Register serializer
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoreUser
@@ -54,23 +53,33 @@ class EditUserSerializer(serializers.ModelSerializer):
         model = CoreUser
         fields = ('first_name', 'last_name', 'phone')
 
-#
-# class ShopSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Shop
-#         fields =  '__all__'
-
 
 class ShopSerializer(ModelSerializer):
+    try:
+        class Meta:
+            model = Shop
+            fields = '__all__'
+
+        def create(self, validated_data):
+            if Shop.objects.filter(seller_id=validated_data['seller_id']).exists():
+                raise serializers.ValidationError("User Already exists.")
+            new_shop = Shop.objects.create(
+                title=validated_data['title'],
+                description=validated_data['description'],
+                location=validated_data['location'],
+                seller_id=validated_data['seller_id']
+            )
+            return new_shop
+    except Exception as e:
+        print(f'[ShopSerializer] serializer throws exception {e}')
+
+
+class ShopUserSerializer(ModelSerializer):
     class Meta:
         model = Shop
-        fields = '__all__'
+        fields = "__all__"
 
-    def create(self, validated_data):
-        new_shop = Shop.objects.create(
-            title=validated_data['title'],
-            description=validated_data['description'],
-            location=validated_data['location'],
-            seller_id=validated_data['seller_id']
-        )
-        return new_shop
+    def to_representation(self, instance):
+        response = super().to_representation(instance)
+        response['seller_id'] = f"{instance.seller_id.id}"
+        return response

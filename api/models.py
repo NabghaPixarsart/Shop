@@ -71,5 +71,17 @@ class Shop(models.Model):
 
 
 
+  # def create(self, validated_data):
+  #       if Shop.objects.filter(user=self.context["request"].user).exists():
+  #           raise serializers.ValidationError("User Already exists.")
+  #       user_attributes = Shop.objects.create(
+  #           title=validated_data['title'],
+  #           description=validated_data['description'],
+  #           location=validated_data['location'],
+  #           seller_id=validated_data['seller_id']
+  #       )
+  #       return user_attributes
+
+
 
 

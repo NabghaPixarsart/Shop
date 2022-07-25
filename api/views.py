@@ -1,14 +1,9 @@
-from django.db.models import F
-from json_response import json_response
-from rest_framework.decorators import api_view
-from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.utils import json
 from rest_framework.views import APIView
 from .models import CoreUser, Shop
-from .serializers import RegisterSerializer, UserSerializer, UserLoginSerializer, ShopSerializer
-from rest_framework import status, viewsets
+from .serializers import RegisterSerializer, UserSerializer, UserLoginSerializer, ShopSerializer, ShopUserSerializer
+from rest_framework import status
 
 
 class RegisterApi(APIView):
@@ -57,7 +52,6 @@ class UpdateUser(APIView):
 
     def put(self, request, *args, **kwargs):
         try:
-            defined_roles = ['admin', 'customer', 'vendor', 'driver']
             id = request.data.get('id', None)
             first_name = request.data.get('first_name', None)
             last_name = request.data.get('last_name', None)
@@ -161,14 +155,8 @@ class UpdateUser(APIView):
             return Response(response, status.HTTP_400_BAD_REQUEST)
 
 
-# class ShopViewSet(viewsets.ModelViewSet):
-#     queryset = Shop.objects.all()
-#     serializer_class = ShopSerializer
-#
-
-
 class ShopView(APIView):
-    def post(self, request, ):
+    def post(self, request):
         try:
             request.data._mutable = True
             request.data['seller_id'] = request.user.id
@@ -176,29 +164,92 @@ class ShopView(APIView):
             request.data._mutable = False
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                response = {
+                    'success': True,
+                    'message': 'Successfully created',
+                    'shop_id': serializer.data['id']
+                }
+
+                return Response(response, status=status.HTTP_200_OK)
             else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                print(type(serializer.errors))
+                response = {
+                    'success': False,
+                    'message': serializer.errors
+                }
+                return Response(response, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            response = {
+                'success': False,
+                'message': f'bad request {e}'
+            }
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ShopApi(APIView):
+
+    def put(self, request):
+        try:
+            # if Shop.objects.filter(seller_id=request.user.id).exists():
+            #     raise
+            shop_object = Shop.objects.filter(seller_id=request.user.id)
+            title = request.data.get('title', None)
+            location = request.data.get('location', None)
+            description = request.data.get('description', None)
+            if shop_object is not None:
+                if title is not None:
+                    shop_object.update(title=title)
+
+                if description is not None:
+                    shop_object.update(description=description)
+
+                if location is not None:
+                    shop_object.update(location=location)
+                response = {
+                    'success': True,
+                    'message': 'Susseccfully updated'
+                }
+                return Response(response, status.HTTP_200_OK)
+            # serializer = ShopUserSerializer(shop_object)
+            # if serializer.is_valid():
+            #     # serializer.save()
+            #     return Response(serializer.data, status=status.HTTP_200_OK)
+            # else:
+            #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"message": e.args[0]}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserShopView(APIView):
+    """offersView class
+        This view performs GET,PUT and DELETE operations for FAQ
+        Parameters
+        ----------
+        APIView : rest_framework.views
+        """
+
+    def get(self, request, ):
+        try:
+            shop_object = Shop.objects.filter(seller_id=request.user.id).all().values()
+            shop_data = shop_object[0] if shop_object else None
+            if shop_data:
+                response = {
+                    'success': True,
+                    'message': 'Shop details',
+                    'title': shop_data['title'],
+                    'description': shop_data['description'],
+                    'location': shop_data['location']
+                }
+                return Response(response, status.HTTP_200_OK)
+            # serializer = ShopUserSerializer(shop_object)
+            # return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Shop.DoesNotExist:
+            return Response({"message": f"user object does not exist against {id}"}, status=status.HTTP_404_NOT_FOUND)
+
         except Exception as e:
             return Response({"message": e.args[0]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-#
-# class GetShopView(APIView):
-#     """offersView class
-#         This view performs GET,PUT and DELETE operations for FAQ
-#         Parameters
-#         ----------
-#         APIView : rest_framework.views
-#         """
-#
-#     def get(self, request, ):
-#         try:
-#             shop_object = Shop.objects.get()
-#             serializer = ShopSerializer(shop_object)
-#             return Response(serializer.data, status=status.HTTP_200_OK)
-#
-#         except Shop.DoesNotExist:
-#             return Response({"message": f"nft object does not exist against {id}"}, status=status.HTTP_404_NOT_FOUND)
-#
-#         except Exception as e:
-#             return Response({"message": e.args[0]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
